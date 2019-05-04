@@ -6,6 +6,8 @@ license = "MIT"
 description = "A Reverse Polish Notation lib + executable"
 
 [dependencies]
+permutohedron = "0.2.4"
+rand = "*"
 
 [[bin]]
 name = "rpn"
