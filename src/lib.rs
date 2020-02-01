@@ -103,6 +103,7 @@ enum Operator {
 enum OperationElt {
     Operator(Operator),
     Operand(f32),
+    Text(String),
 }
 
 fn tokenizer(expr: &str) -> Result<Vec<OperationElt>, String> {
@@ -231,8 +232,9 @@ fn tokenizer(expr: &str) -> Result<Vec<OperationElt>, String> {
 /// ````
 /// extern crate rpn;
 ///
-/// let result:f32 = rpn::evaluate("5 2 +").unwrap();
-/// assert_eq!(result, 7.0);
+/// let mut stack: Vec<f32> = Vec::new();
+/// let result:f32 = rpn::evaluate(&mut stack, "5 2 +").unwrap();
+/// assert_eq!(result.pop().unwrap(), 7.0);
 /// ````
 ///
 /// # Errors
@@ -241,218 +243,225 @@ fn tokenizer(expr: &str) -> Result<Vec<OperationElt>, String> {
 /// - if it includes an unrecognized operator (recognized ones are +, -, * and /
 /// - if it misses an operand (i.e. value)
 /// - if it misses an operator
-pub fn evaluate<'a>(stack: &'a mut Vec<f32>, expr: &str) -> Result<&'a mut Vec<f32>, String> {
+pub fn evaluate<'a>(
+    stack: &'a mut Vec<OperationElt>,
+    expr: &str,
+) -> Result<&'a mut Vec<OperationElt>, String> {
     return match tokenizer(expr) {
         Ok(tokens) => {
+            // Before a new stack was created, now just append the new
             //let mut stack: Vec<f32> = Vec::new();
+            //stack.push(tokens);
+            stack.append(&mut tokens);
             for token in tokens {
                 match token {
                     //return Err("Unsufficient operands before operator".to_string());
                     OperationElt::Operator(operator) => {
-                        // Operators without operands
-                        if stack.len() == 0 {
-                            match operator {
-                                Operator::Setbin => {}
-                                Operator::Setchar => {}
-                                Operator::Clear => stack.clear(),
-                                Operator::Setdec => {}
-                                Operator::Sethex => {}
-                                Operator::Setoct => {}
-                                Operator::Help => {}
-                                Operator::Depth => {
-                                    let length = stack.len();
-                                    stack.push(length as f32)
+                        //} else if stack.len() == 2 {
+                        // Operators with 2 operands
+                        let operand1 = match stack.pop().unwrap() {
+                            OperationElt::Operand(val) => val,
+                        };
+                        //.expect("expected f32 values in stack");
+                        let operand2 = match stack.pop().unwrap() {
+                            OperationElt::Operand(val) => val,
+                        };
+                        let result = match operator {
+                            Operator::Plus => operand1 + operand2,
+                            Operator::Minus => operand1 - operand2,
+                            Operator::Multiply => operand1 * operand2,
+                            Operator::Divide => operand1 / operand2,
+                            Operator::Modulo => operand1 % operand2,
+                            Operator::Pow => operand1.powf(operand2),
+                            Operator::Gcd => {
+                                // Euclids Algorithm
+                                let mut x = operand1 as i32;
+                                let mut y = operand2 as i32;
+                                while y != 0 {
+                                    let t = y;
+                                    y = x % y;
+                                    x = t;
                                 }
-                                Operator::Rot => {
-                                    // Grab the last element of the stack, and put in the top of
-                                    // stack
-                                    let length = stack.len();
-                                    let mut stack_back = stack.remove(length - 1);
-                                    stack.push(stack_back);
-                                }
-                                Operator::Pop => {
+                                x as f32
+                            }
+                            Operator::Hypot => (operand1.powf(2_f32) + operand2.powf(2_f32)).sqrt(),
+                            Operator::Max => operand1.max(operand2),
+                            Operator::Min => operand1.min(operand2),
+                            Operator::Or => (operand1.to_bits() | operand2.to_bits()) as f32,
+                            Operator::Xor => (operand1.to_bits() ^ operand2.to_bits()) as f32,
+                            _ => operand1 + operand2,
+                        };
+                        stack.push(OperationElt::Operand(result));
+                        //}
+                        //} else if stack.len() == 1 {
+                        let operand1 = match stack.pop().unwrap() {
+                            OperationElt::Operand(val) => val,
+                        };
+                        // Operators with 1 operand
+
+                        match operator {
+                            // Operators not returning any value
+                            Operator::Dropn => {
+                                for _x in 0..(operand1 as usize) {
                                     let _thrash = stack.pop();
                                 }
-                                Operator::Drop => {
-                                    let _thrash = stack.pop();
-                                }
-                                Operator::Drop2 => {
-                                    let mut _thrash =
-                                        stack.pop().expect("expected f32 values in stack");
-                                    _thrash = stack.pop().expect("expected f32 values in stack");
-                                }
-                                Operator::Dupel => {
-                                    let stack_top =
-                                        stack.pop().expect("expected f32 values in stack");
-                                    stack.push(stack_top);
-                                    stack.push(stack_top);
-                                }
-                                Operator::Dupel2 => {
-                                    let stack_top =
-                                        stack.pop().expect("expected f32 values in stack");
-                                    let stack_second =
-                                        stack.pop().expect("expected f32 values in stack");
-                                    // Push what we got twice onto the stack
-                                    stack.push(stack_second);
-                                    stack.push(stack_top);
-                                    stack.push(stack_second);
-                                    stack.push(stack_top);
-                                }
-                                Operator::Prod => {
-                                    let mut product =
-                                        stack.pop().expect("expected f32 values in stack");
-                                    for _x in 0..(stack.len() - 1) {
-                                        product = product
-                                            * stack.pop().expect("expected f32 values in stack");
-                                    }
-                                    stack.push(product as f32);
-                                }
-                                Operator::Sum => {
-                                    let mut product =
-                                        stack.pop().expect("expected f32 values in stack");
-                                    for _x in 0..(stack.len() - 1) {
-                                        product = product
-                                            + stack.pop().expect("expected f32 values in stack");
-                                    }
-                                    stack.push(product as f32);
-                                }
-                                Operator::Rnd => {
-                                    let mut rng = rand::thread_rng();
-                                    stack.push(rng.gen_range(0.0, 1.0));
-                                }
-                                Operator::Swap => {
-                                    let mut stack_first =
-                                        stack.pop().expect("expected f32 values in stack");
-                                    let mut stack_second =
-                                        stack.pop().expect("expected f32 values in stack");
-                                    stack.push(stack_first);
-                                    stack.push(stack_second);
-                                }
-                                _ => {}
-                            };
-                        } else if stack.len() == 1 {
-                            let operand1 = stack.pop().expect("expected f32 values in stack");
-                            // Operators with 1 operand
-
-                            match operator {
-                                // Operators not returning any value
-                                Operator::Dropn => {
-                                    for _x in 0..(operand1 as usize) {
-                                        let _thrash = stack.pop();
-                                    }
-                                }
-                                Operator::Dupn => {
-                                    let mut stack_copy = Vec::new();
-                                    for _x in 0..(operand1 as usize) {
-                                        stack_copy.push(
-                                            stack.pop().expect("expected f32 values in stack"),
-                                        );
-                                    }
-                                    // Push what we got twice onto the stack
-                                    for _x in 0..(operand1 as usize) {
-                                        stack.push(stack_copy.pop().expect("Empty stack"));
-                                    }
-                                }
-                                Operator::Push => {
-                                    stack.push(operand1);
-                                }
-                                Operator::Rolld => {
-                                    let stack_top =
-                                        stack.pop().expect("No value found on this stack level");
-                                    stack.insert(operand1 as usize - 1, stack_top);
-                                }
-                                _ => {}
                             }
-
-                            let result = match operator {
-                                // Operators returning a value
-                                Operator::Fact => {
-                                    permutohedron::factorial(operand1 as usize) as f32
+                            Operator::Dupn => {
+                                let mut stack_copy = Vec::<OperationElt>::new();
+                                for _x in 0..(operand1 as usize) {
+                                    stack_copy.push(stack.pop().unwrap());
                                 }
-                                Operator::Fabs => operand1.abs(),
-                                Operator::Acos => operand1.acos(),
-                                Operator::Acosh => operand1.acosh(),
-                                Operator::Asin => operand1.asin(),
-                                Operator::Asinh => operand1.asinh(),
-                                Operator::Tan => operand1.tan(),
-                                Operator::Tanh => operand1.tanh(),
-                                Operator::Atan => operand1.atan(),
-                                Operator::Atanh => operand1.atanh(),
-                                Operator::Exp10 => 10_f32.powf(operand1),
-                                Operator::Cbrt => operand1.cbrt(),
-                                Operator::Ceil => operand1.ceil(),
-                                Operator::Chs => -operand1,
-                                Operator::Cos => operand1.cos(),
-                                Operator::Cosh => operand1.cosh(),
-                                Operator::Exp => operand1.exp(),
-                                Operator::Expm1 => operand1.exp_m1(),
-                                Operator::Floor => operand1.floor(),
-                                Operator::Fp => operand1.fract(),
-                                Operator::Inv => operand1.recip(),
-                                Operator::Ip => operand1.trunc(),
-                                Operator::Log2 => operand1.log2(),
-                                Operator::Logb => operand1.log2().trunc(),
-                                Operator::Log10 => operand1.log10(),
-                                Operator::Log => operand1.ln(),
-                                Operator::Log1p => (operand1 + 1_f32).ln(),
-                                Operator::Not => !operand1.to_bits() as f32,
-                                Operator::Rint => operand1.round(),
-                                Operator::Roll => stack.remove(operand1 as usize - 1) as f32,
-                                Operator::Sign => {
-                                    let mut sign;
-                                    if operand1 < 0_f32 {
-                                        sign = -1.0_f32;
-                                    } else if operand1 == 0_f32 {
-                                        sign = 0.0_f32;
-                                    } else {
-                                        sign = 1.0_f32;
-                                    }
-                                    sign
+                                // Push what we got twice onto the stack
+                                for _x in 0..(operand1 as usize) {
+                                    stack.push(stack_copy.pop().unwrap());
                                 }
-                                Operator::Sin => operand1.sin(),
-                                Operator::Sinh => operand1.sinh(),
-                                Operator::Sqr => operand1 * operand1,
-                                Operator::Sqrt => operand1.sqrt(),
-                                _ => 666_f32,
-                            };
-
-                            if result.is_nan() {
-                            } else {
-                                stack.push(result);
                             }
-                        } else if stack.len() == 2 {
-                            // Operators with 2 operands
-                            let operand1 = stack.pop().expect("expected f32 values in stack");
-                            let operand2 = stack.pop().expect("expected f32 values in stack");
-                            let result = match operator {
-                                Operator::Plus => operand1 + operand2,
-                                Operator::Minus => operand1 - operand2,
-                                Operator::Multiply => operand1 * operand2,
-                                Operator::Divide => operand1 / operand2,
-                                Operator::Modulo => operand1 % operand2,
-                                Operator::Pow => operand1.powf(operand2),
-                                Operator::Gcd => {
-                                    // Euclids Algorithm
-                                    let mut x = operand1 as i32;
-                                    let mut y = operand2 as i32;
-                                    while y != 0 {
-                                        let t = y;
-                                        y = x % y;
-                                        x = t;
-                                    }
-                                    x as f32
-                                }
-                                Operator::Hypot => {
-                                    (operand1.powf(2_f32) + operand2.powf(2_f32)).sqrt()
-                                }
-                                Operator::Max => operand1.max(operand2),
-                                Operator::Min => operand1.min(operand2),
-                                Operator::Or => (operand1.to_bits() | operand2.to_bits()) as f32,
-                                Operator::Xor => (operand1.to_bits() ^ operand2.to_bits()) as f32,
-                                _ => operand1 + operand2,
-                            };
-                            stack.push(result);
+                            Operator::Push => {
+                                stack.push(OperationElt::Operand(operand1));
+                            }
+                            Operator::Rolld => {
+                                let stack_top =
+                                    stack.pop().expect("No value found on this stack level");
+                                stack.insert(operand1 as usize - 1, stack_top);
+                            }
+                            _ => {}
                         }
+
+                        let result = match operator {
+                            // Operators returning a value
+                            Operator::Fact => permutohedron::factorial(operand1 as usize) as f32,
+                            Operator::Fabs => operand1.abs(),
+                            Operator::Acos => operand1.acos(),
+                            Operator::Acosh => operand1.acosh(),
+                            Operator::Asin => operand1.asin(),
+                            Operator::Asinh => operand1.asinh(),
+                            Operator::Tan => operand1.tan(),
+                            Operator::Tanh => operand1.tanh(),
+                            Operator::Atan => operand1.atan(),
+                            Operator::Atanh => operand1.atanh(),
+                            Operator::Exp10 => 10_f32.powf(operand1),
+                            Operator::Cbrt => operand1.cbrt(),
+                            Operator::Ceil => operand1.ceil(),
+                            Operator::Chs => -operand1,
+                            Operator::Cos => operand1.cos(),
+                            Operator::Cosh => operand1.cosh(),
+                            Operator::Exp => operand1.exp(),
+                            Operator::Expm1 => operand1.exp_m1(),
+                            Operator::Floor => operand1.floor(),
+                            Operator::Fp => operand1.fract(),
+                            Operator::Inv => operand1.recip(),
+                            Operator::Ip => operand1.trunc(),
+                            Operator::Log2 => operand1.log2(),
+                            Operator::Logb => operand1.log2().trunc(),
+                            Operator::Log10 => operand1.log10(),
+                            Operator::Log => operand1.ln(),
+                            Operator::Log1p => (operand1 + 1_f32).ln(),
+                            Operator::Not => !operand1.to_bits() as f32,
+                            Operator::Rint => operand1.round(),
+                            Operator::Roll => match stack.remove(operand1 as usize - 1) {
+                                OperationElt::Operand(val) => val,
+                            },
+                            Operator::Sign => {
+                                let sign;
+                                if operand1 < 0_f32 {
+                                    sign = -1.0_f32;
+                                } else if operand1 == 0_f32 {
+                                    sign = 0.0_f32;
+                                } else {
+                                    sign = 1.0_f32;
+                                }
+                                sign
+                            }
+                            Operator::Sin => operand1.sin(),
+                            Operator::Sinh => operand1.sinh(),
+                            Operator::Sqr => operand1 * operand1,
+                            Operator::Sqrt => operand1.sqrt(),
+                            _ => 666_f32,
+                        };
+
+                        if result.is_nan() {
+                        } else {
+                            stack.push(OperationElt::Operand(result));
+                        }
+                        // Operators without operands
+                        //if stack.len() == 0 {
+                        match operator {
+                            Operator::Setbin => {}
+                            Operator::Setchar => {}
+                            Operator::Clear => stack.clear(),
+                            Operator::Setdec => {}
+                            Operator::Sethex => {}
+                            Operator::Setoct => {}
+                            Operator::Help => {}
+                            Operator::Depth => {
+                                let length = stack.len();
+                                stack.push(OperationElt::Operand(length as f32))
+                            }
+                            Operator::Rot => {
+                                // Grab the last element of the stack, and put in the top of
+                                // stack
+                                let length = stack.len();
+                                let stack_back = stack.remove(length - 1);
+                                stack.push(stack_back);
+                            }
+                            Operator::Pop => {
+                                let _thrash = stack.pop();
+                            }
+                            Operator::Drop => {
+                                let _thrash = stack.pop();
+                            }
+                            Operator::Drop2 => {
+                                let mut _thrash =
+                                    stack.pop().expect("expected f32 values in stack");
+                                _thrash = stack.pop().expect("expected f32 values in stack");
+                            }
+                            Operator::Dupel => {
+                                let stack_top = stack.pop().expect("expected f32 values in stack");
+                                stack.push(stack_top);
+                                stack.push(stack_top);
+                            }
+                            Operator::Dupel2 => {
+                                let stack_top = stack.pop().expect("expected f32 values in stack");
+                                let stack_second =
+                                    stack.pop().expect("expected f32 values in stack");
+                                // Push what we got twice onto the stack
+                                stack.push(stack_second);
+                                stack.push(stack_top);
+                                stack.push(stack_second);
+                                stack.push(stack_top);
+                            }
+                            Operator::Prod => {
+                                let mut product =
+                                    stack.pop().expect("expected f32 values in stack");
+                                for _x in 0..(stack.len() - 1) {
+                                    product = product
+                                        * stack.pop().expect("expected f32 values in stack");
+                                }
+                                stack.push(product as f32);
+                            }
+                            Operator::Sum => {
+                                let mut product =
+                                    stack.pop().expect("expected f32 values in stack");
+                                for _x in 0..(stack.len() - 1) {
+                                    product = product
+                                        + stack.pop().expect("expected f32 values in stack");
+                                }
+                                stack.push(product as f32);
+                            }
+                            Operator::Rnd => {
+                                let mut rng = rand::thread_rng();
+                                stack.push(rng.gen_range(0.0, 1.0));
+                            }
+                            Operator::Swap => {
+                                let stack_first =
+                                    stack.pop().expect("expected f32 values in stack");
+                                let stack_second =
+                                    stack.pop().expect("expected f32 values in stack");
+                                stack.push(stack_first);
+                                stack.push(stack_second);
+                            }
+                            _ => {}
+                        };
                     }
                     OperationElt::Operand(val) => stack.push(val),
                 }
@@ -469,62 +478,71 @@ pub fn evaluate<'a>(stack: &'a mut Vec<f32>, expr: &str) -> Result<&'a mut Vec<f
 #[test]
 fn it_adds() {
     let mut stack: Vec<f32> = Vec::new();
-    let result = rpn::evaluate(&mut stack, "1 2 +").unwrap();
-    assert_eq!(result.pop(), 3.0);
+    let result = evaluate(&mut stack, "1 2 +").unwrap();
+    assert_eq!(result.pop().unwrap(), 3.0);
 }
 
 #[test]
 fn it_substracts() {
-    let result = evaluate("1 2 -");
-    assert_eq!(result.unwrap(), -1.0);
+    let mut stack: Vec<f32> = Vec::new();
+    let result = evaluate(&mut stack, "1 2 -").unwrap();
+    assert_eq!(result.pop().unwrap(), -1.0);
 }
 
 #[test]
 fn it_multiplies() {
-    let result = evaluate("6 7 *");
-    assert_eq!(result.unwrap(), 42.0);
+    let mut stack: Vec<f32> = Vec::new();
+    let result = evaluate(&mut stack, "6 7 *").unwrap();
+    assert_eq!(result.pop().unwrap(), 42.0);
 }
 
 #[test]
 fn it_divides() {
-    let result = evaluate("1 2 /");
-    assert_eq!(result.unwrap(), 0.5);
+    let mut stack: Vec<f32> = Vec::new();
+    let result = evaluate(&mut stack, "1 2 /").unwrap();
+    assert_eq!(result.pop().unwrap(), 0.5);
 }
 
 #[test]
 fn it_modulos() {
-    let result = evaluate("4 2 %");
-    assert_eq!(result.unwrap(), 0.0);
+    let mut stack: Vec<f32> = Vec::new();
+    let result = evaluate(&mut stack, "4 2 %").unwrap();
+    assert_eq!(result.pop().unwrap(), 0.0);
 }
 
 #[test]
 fn it_evaluates_complex_expressions() {
     // ((1+2) * 8 / (5-1) - 4 % 3) / 2
-    let result = evaluate("1 2 + 8 * 5 1 - / 4 3 % - 2 /");
-    assert_eq!(result.unwrap(), 2.5);
+    let mut stack: Vec<f32> = Vec::new();
+    let result = evaluate(&mut stack, "1 2 + 8 * 5 1 - / 4 3 % - 2 /").unwrap();
+    assert_eq!(result.pop().unwrap(), 2.5);
 }
 
 #[test]
 fn it_allows_multiple_shitespaces() {
-    let result = evaluate("1  2 +\t3 -");
-    assert_eq!(result.unwrap(), 0.0);
+    let mut stack: Vec<f32> = Vec::new();
+    let result = evaluate(&mut stack, "1  2 +\t3 -").unwrap();
+    assert_eq!(result.pop().unwrap(), 0.0);
 }
 
 #[test]
 fn it_fails_for_unsupported_characters() {
-    let result = evaluate("1 2 t");
+    let mut stack: Vec<f32> = Vec::new();
+    let result = evaluate(&mut stack, "1 2 t");
     assert_eq!(result.unwrap_err(), "Cannot parse operand \"t\"");
 }
 
 #[test]
 fn it_fails_for_unsufficient_operands() {
-    let result = evaluate("1 +");
+    let mut stack: Vec<f32> = Vec::new();
+    let result = evaluate(&mut stack, "1 +");
     assert_eq!(result.unwrap_err(), "Unsufficient operands before operator");
 }
 
 #[test]
 fn it_fails_for_unsufficient_operators() {
-    let result = evaluate("1 2 3 +");
+    let mut stack: Vec<f32> = Vec::new();
+    let result = evaluate(&mut stack, "1 2 3 +");
     assert_eq!(
         result.unwrap_err(),
         "Remaining untreated operands. Probably missing operator."

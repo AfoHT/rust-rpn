@@ -4,7 +4,7 @@ use std::io::{self, Write};
 fn main() {
     println!("Reverse Polish Notation.");
     println!("Type quit to exit");
-    let mut stack: Vec<f32> = Vec::new();
+    let mut stack: Vec<OperationElt> = Vec<OperationElt>::new();
 
     loop {
         print!("> ");
