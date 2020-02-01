@@ -1,13 +1,14 @@
 extern crate rpn;
+use rpn::OperationElt;
 use std::io::{self, Write};
 
 fn main() {
     println!("Reverse Polish Notation.");
     println!("Type quit to exit");
-    let mut stack: Vec<OperationElt> = Vec<OperationElt>::new();
+    let mut stack: Vec<OperationElt> = Vec::new();
 
     loop {
-        print!("> ");
+        print!(">> ");
         io::stdout().flush().expect("flushing failed");
         let mut input = String::new();
 
