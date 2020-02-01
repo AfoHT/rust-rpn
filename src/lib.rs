@@ -562,6 +562,19 @@ fn it_modulos() {
 }
 
 #[test]
+fn it_square_root() {
+    let mut stack: Vec<OperationElt> = Vec::new();
+    let result = evaluate(&mut stack, "9 sqrt").unwrap();
+    assert_eq!(
+        match result.pop().unwrap() {
+            OperationElt::Operand(val) => Ok(val),
+            _ => Err("No operand on stack"),
+        }.unwrap(),
+        3.0
+    );
+}
+
+#[test]
 fn it_evaluates_complex_expressions() {
     // ((1+2) * 8 / (5-1) - 4 % 3) / 2
     let mut stack: Vec<OperationElt> = Vec::new();
