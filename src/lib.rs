@@ -228,6 +228,16 @@ fn tokenizer(expr: &str) -> Result<Vec<OperationElt>, String> {
         .collect()
 }
 
+/// Pop an operand from the stack returning the inner f32
+///
+///
+fn stack_pop<'a>(stack: &'a mut Vec<OperationElt>) -> Result<f32, String> {
+    match stack.pop().unwrap() {
+        OperationElt::Operand(val) => Ok(val),
+        _ => Err("Not a suitable number on the stack".to_string()),
+    }
+}
+
 /// Evaluates an RPL expression.
 ///
 /// # Examples
@@ -258,146 +268,287 @@ pub fn evaluate<'a>(
 ) -> Result<&'a mut Vec<OperationElt>, String> {
     return match tokenizer(expr) {
         Ok(tokens) => {
-            // Before a new stack was created, now just use the existing stack
-            //let mut stack: Vec<f32> = Vec::new();
             for token in tokens {
                 match token {
                     OperationElt::Operator(operator) => {
                         // Parse the operation to use
-                        if stack.len() >= 2 {
-                            // Operators with 2 operands
-                            let operand1 = match stack.pop().unwrap() {
-                                OperationElt::Operand(val) => Ok(val),
-                                _ => Err("Not a suitable number on the stack"),
-                            }.unwrap();
-                            let operand2 = match stack.pop().unwrap() {
-                                OperationElt::Operand(val) => Ok(val),
-                                _ => Err("Not a suitable number on the stack"),
-                            }.unwrap();
-                            let result = match operator {
-                                Operator::Plus => operand1 + operand2,
-                                Operator::Minus => operand2 - operand1,
-                                Operator::Multiply => operand1 * operand2,
-                                Operator::Divide => operand2 / operand1,
-                                Operator::Modulo => operand2 % operand1,
-                                Operator::Pow => operand2.powf(operand1),
-                                Operator::Gcd => {
-                                    // Euclids Algorithm
-                                    let mut x = operand1 as i32;
-                                    let mut y = operand2 as i32;
-                                    while y != 0 {
-                                        let t = y;
-                                        y = x % y;
-                                        x = t;
-                                    }
-                                    x as f32
+
+                        //let (stack, result) = evaluate_token(&mut stack, operator);
+                        // Operators with 2 operands
+                        match operator {
+                            Operator::Plus => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let operand2 = stack_pop(stack).unwrap();
+
+                                stack.push(OperationElt::Operand(operand1 + operand2))
+                            }
+                            Operator::Minus => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let operand2 = stack_pop(stack).unwrap();
+
+                                stack.push(OperationElt::Operand(operand2 - operand1))
+                            }
+                            Operator::Multiply => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let operand2 = stack_pop(stack).unwrap();
+
+                                stack.push(OperationElt::Operand(operand1 * operand2))
+                            }
+                            Operator::Divide => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let operand2 = stack_pop(stack).unwrap();
+
+                                stack.push(OperationElt::Operand(operand2 / operand1))
+                            }
+                            Operator::Modulo => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let operand2 = stack_pop(stack).unwrap();
+
+                                stack.push(OperationElt::Operand(operand2 % operand1))
+                            }
+                            Operator::Pow => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let operand2 = stack_pop(stack).unwrap();
+
+                                stack.push(OperationElt::Operand(operand2.powf(operand1)))
+                            }
+                            Operator::Gcd => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let operand2 = stack_pop(stack).unwrap();
+
+                                // Euclids Algorithm
+                                let mut x = operand1 as i32;
+                                let mut y = operand2 as i32;
+                                while y != 0 {
+                                    let t = y;
+                                    y = x % y;
+                                    x = t;
                                 }
-                                Operator::Hypot => {
-                                    (operand1.powf(2_f32) + operand2.powf(2_f32)).sqrt()
-                                }
-                                Operator::Max => operand1.max(operand2),
-                                Operator::Min => operand1.min(operand2),
-                                Operator::Or => (operand1.to_bits() | operand2.to_bits()) as f32,
-                                Operator::Xor => (operand1.to_bits() ^ operand2.to_bits()) as f32,
-                                _ => operand1 + operand2,
-                            };
-                            stack.push(OperationElt::Operand(result));
-                        } else if stack.len() == 1 {
-                            let operand1 = match stack.pop().unwrap() {
-                                OperationElt::Operand(val) => Ok(val),
-                                _ => Err("Not a suitable number on the stack"),
-                            }.unwrap();
+                                stack.push(OperationElt::Operand(x as f32))
+                            }
+                            Operator::Hypot => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let operand2 = stack_pop(stack).unwrap();
+
+                                stack.push(OperationElt::Operand(
+                                    (operand1.powf(2_f32) + operand2.powf(2_f32)).sqrt(),
+                                ))
+                            }
+                            Operator::Max => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let operand2 = stack_pop(stack).unwrap();
+
+                                stack.push(OperationElt::Operand(operand1.max(operand2)))
+                            }
+                            Operator::Min => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let operand2 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.min(operand2)))
+                            }
+                            Operator::Or => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let operand2 = stack_pop(stack).unwrap();
+
+                                stack.push(OperationElt::Operand(
+                                    (operand1.to_bits() | operand2.to_bits()) as f32,
+                                ))
+                            }
+                            Operator::Xor => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let operand2 = stack_pop(stack).unwrap();
+
+                                stack.push(OperationElt::Operand(
+                                    (operand1.to_bits() ^ operand2.to_bits()) as f32,
+                                ))
+                            }
                             // Operators with 1 operand
-                            match operator {
-                                // Operators not returning any value
-                                Operator::Dropn => {
-                                    for _x in 0..(operand1 as usize) {
-                                        let _thrash = stack.pop();
-                                    }
+                            Operator::Fact => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(permutohedron::factorial(
+                                    operand1 as usize,
+                                )
+                                    as f32))
+                            }
+                            Operator::Fabs => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.abs()))
+                            }
+                            Operator::Acos => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.acos()))
+                            }
+                            Operator::Acosh => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.acosh()))
+                            }
+                            Operator::Asin => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.asin()))
+                            }
+                            Operator::Asinh => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.asinh()))
+                            }
+                            Operator::Tan => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.tan()))
+                            }
+                            Operator::Tanh => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.tanh()))
+                            }
+                            Operator::Atan => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.atan()))
+                            }
+                            Operator::Atanh => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.atanh()))
+                            }
+                            Operator::Exp10 => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(10_f32.powf(operand1)))
+                            }
+                            Operator::Cbrt => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.cbrt()))
+                            }
+                            Operator::Ceil => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.ceil()))
+                            }
+                            Operator::Chs => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(-operand1))
+                            }
+                            Operator::Cos => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.cos()))
+                            }
+                            Operator::Cosh => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.cosh()))
+                            }
+                            Operator::Exp => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.exp()))
+                            }
+                            Operator::Expm1 => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.exp_m1()))
+                            }
+                            Operator::Floor => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.floor()))
+                            }
+                            Operator::Fp => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.fract()))
+                            }
+                            Operator::Inv => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.recip()))
+                            }
+                            Operator::Ip => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.trunc()))
+                            }
+                            Operator::Log2 => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.log2()))
+                            }
+                            Operator::Logb => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.log2().trunc()))
+                            }
+                            Operator::Log10 => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.log10()))
+                            }
+                            Operator::Log => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.ln()))
+                            }
+                            Operator::Log1p => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand((operand1 + 1_f32).ln()))
+                            }
+                            Operator::Not => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(!operand1.to_bits() as f32))
+                            }
+                            Operator::Rint => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.round()))
+                            }
+                            Operator::Roll => {
+                                // Get the given index to push to the stack top
+                                let operand1 = stack_pop(stack).unwrap();
+                                let result = match stack.remove(operand1 as usize - 1) {
+                                    OperationElt::Operand(val) => Ok(OperationElt::Operand(val)),
+                                    _ => Err("Not a suitable number on the stack"),
+                                }?;
+                                stack.push(result)
+                            }
+                            Operator::Sign => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let sign;
+                                if operand1 < 0_f32 {
+                                    sign = -1.0_f32;
+                                } else if operand1 == 0_f32 {
+                                    sign = 0.0_f32;
+                                } else {
+                                    sign = 1.0_f32;
                                 }
-                                Operator::Dupn => {
-                                    let mut stack_copy = Vec::<OperationElt>::new();
-                                    for _x in 0..(operand1 as usize) {
-                                        stack_copy.push(stack.pop().unwrap());
-                                    }
-                                    // Push what we got twice onto the stack
-                                    for _x in 0..(operand1 as usize) {
-                                        stack.push(stack_copy.pop().unwrap());
-                                    }
+                                stack.push(OperationElt::Operand(sign))
+                            }
+                            Operator::Sin => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.sin()))
+                            }
+                            Operator::Sinh => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.sinh()))
+                            }
+                            Operator::Sqr => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1 * operand1))
+                            }
+                            Operator::Sqrt => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1.sqrt()))
+                            }
+                            // Operators not returning any value
+                            Operator::Dropn => {
+                                let operand1 = stack_pop(stack).unwrap();
+
+                                for _x in 0..(operand1 as usize) {
+                                    let _thrash = stack.pop();
                                 }
-                                Operator::Push => {
-                                    stack.push(OperationElt::Operand(operand1));
+                            }
+                            Operator::Dupn => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let mut stack_copy = Vec::<OperationElt>::new();
+                                for _x in 0..(operand1 as usize) {
+                                    stack_copy.push(stack.pop().unwrap());
                                 }
-                                Operator::Rolld => {
-                                    let stack_top =
-                                        stack.pop().expect("No value found on this stack level");
-                                    stack.insert(operand1 as usize - 1, stack_top);
+                                // Push what we got twice onto the stack
+                                for _x in 0..(operand1 as usize) {
+                                    stack.push(stack_copy.pop().unwrap());
                                 }
-                                _ => {}
+                            }
+                            Operator::Push => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                stack.push(OperationElt::Operand(operand1));
+                            }
+                            Operator::Rolld => {
+                                let operand1 = stack_pop(stack).unwrap();
+                                let stack_top =
+                                    stack.pop().expect("No value found on this stack level");
+                                stack.insert(operand1 as usize - 1, stack_top);
                             }
 
-                            let result = match operator {
-                                // Operators returning a value
-                                Operator::Fact => {
-                                    permutohedron::factorial(operand1 as usize) as f32
-                                }
-                                Operator::Fabs => operand1.abs(),
-                                Operator::Acos => operand1.acos(),
-                                Operator::Acosh => operand1.acosh(),
-                                Operator::Asin => operand1.asin(),
-                                Operator::Asinh => operand1.asinh(),
-                                Operator::Tan => operand1.tan(),
-                                Operator::Tanh => operand1.tanh(),
-                                Operator::Atan => operand1.atan(),
-                                Operator::Atanh => operand1.atanh(),
-                                Operator::Exp10 => 10_f32.powf(operand1),
-                                Operator::Cbrt => operand1.cbrt(),
-                                Operator::Ceil => operand1.ceil(),
-                                Operator::Chs => -operand1,
-                                Operator::Cos => operand1.cos(),
-                                Operator::Cosh => operand1.cosh(),
-                                Operator::Exp => operand1.exp(),
-                                Operator::Expm1 => operand1.exp_m1(),
-                                Operator::Floor => operand1.floor(),
-                                Operator::Fp => operand1.fract(),
-                                Operator::Inv => operand1.recip(),
-                                Operator::Ip => operand1.trunc(),
-                                Operator::Log2 => operand1.log2(),
-                                Operator::Logb => operand1.log2().trunc(),
-                                Operator::Log10 => operand1.log10(),
-                                Operator::Log => operand1.ln(),
-                                Operator::Log1p => (operand1 + 1_f32).ln(),
-                                Operator::Not => !operand1.to_bits() as f32,
-                                Operator::Rint => operand1.round(),
-                                Operator::Roll => match stack.remove(operand1 as usize - 1) {
-                                    OperationElt::Operand(val) => Ok(val),
-                                    _ => Err("Not a suitable number on the stack"),
-                                }.unwrap(),
-                                Operator::Sign => {
-                                    let sign;
-                                    if operand1 < 0_f32 {
-                                        sign = -1.0_f32;
-                                    } else if operand1 == 0_f32 {
-                                        sign = 0.0_f32;
-                                    } else {
-                                        sign = 1.0_f32;
-                                    }
-                                    sign
-                                }
-                                Operator::Sin => operand1.sin(),
-                                Operator::Sinh => operand1.sinh(),
-                                Operator::Sqr => operand1 * operand1,
-                                Operator::Sqrt => operand1.sqrt(),
-                                _ => 666_f32,
-                            };
-                            if result.is_nan() {
-                            } else {
-                                stack.push(OperationElt::Operand(result));
-                            }
-                        }
-                        // Operators without operands
-                        //if stack.len() == 0 {
-                        match operator {
+                            // Operators without operands
                             Operator::Setbin => {}
                             Operator::Setchar => {}
                             Operator::Clear => stack.clear(),
@@ -445,12 +596,12 @@ pub fn evaluate<'a>(
                             Operator::Prod => {
                                 let mut product = match stack.pop().unwrap() {
                                     OperationElt::Operand(val) => Ok(val),
-                                    _ => Err(println!("Error, can not multiply operators")),
+                                    _ => Err("Error, can not multiply operators".to_string()),
                                 }.unwrap();
                                 for _x in 0..(stack.len() - 1) {
                                     product = product * match stack.pop().unwrap() {
                                         OperationElt::Operand(val) => Ok(val),
-                                        _ => Err(println!("Error, can not multiply operators")),
+                                        _ => Err("Error, can not multiply operators".to_string()),
                                     }.unwrap();
                                 }
                                 stack.push(OperationElt::Operand(product as f32));
@@ -458,12 +609,12 @@ pub fn evaluate<'a>(
                             Operator::Sum => {
                                 let mut sum = match stack.pop().unwrap() {
                                     OperationElt::Operand(val) => Ok(val),
-                                    _ => Err(println!("Error, can not add operators")),
+                                    _ => Err("Error, can not add operators".to_string()),
                                 }.unwrap();
                                 for _x in 0..(stack.len() - 1) {
                                     sum = sum + match stack.pop().unwrap() {
                                         OperationElt::Operand(val) => Ok(val),
-                                        _ => Err(println!("Error, can not add operators")),
+                                        _ => Err("Error, can not add operators".to_string()),
                                     }.unwrap();
                                 }
                                 stack.push(OperationElt::Operand(sum as f32));
@@ -487,9 +638,6 @@ pub fn evaluate<'a>(
                     //OperationElt::Text() => println!("Text case!"),
                 }
             }
-            //if stack.len() != 1 {
-            //return Err("Remaining untreated operands. Probably missing operator.".to_string());
-            //}
             return Ok(stack);
         }
         Err(err) => Err(err),
@@ -503,7 +651,7 @@ fn it_adds() {
     assert_eq!(
         match result.pop().unwrap() {
             OperationElt::Operand(val) => Ok(val),
-            _ => Err("No operand on stack"),
+            _ => Err("No operand on stack".to_string()),
         }.unwrap(),
         3.0
     );
@@ -516,7 +664,7 @@ fn it_substracts() {
     assert_eq!(
         match result.pop().unwrap() {
             OperationElt::Operand(val) => Ok(val),
-            _ => Err("No operand on stack"),
+            _ => Err("No operand on stack".to_string()),
         }.unwrap(),
         -1.0
     );
@@ -529,7 +677,7 @@ fn it_multiplies() {
     assert_eq!(
         match result.pop().unwrap() {
             OperationElt::Operand(val) => Ok(val),
-            _ => Err("No operand on stack"),
+            _ => Err("No operand on stack".to_string()),
         }.unwrap(),
         42.0
     );
@@ -542,7 +690,7 @@ fn it_divides() {
     assert_eq!(
         match result.pop().unwrap() {
             OperationElt::Operand(val) => Ok(val),
-            _ => Err("No operand on stack"),
+            _ => Err("No operand on stack".to_string()),
         }.unwrap(),
         0.5
     );
@@ -555,7 +703,7 @@ fn it_modulos() {
     assert_eq!(
         match result.pop().unwrap() {
             OperationElt::Operand(val) => Ok(val),
-            _ => Err("No operand on stack"),
+            _ => Err("No operand on stack".to_string()),
         }.unwrap(),
         0.0
     );
@@ -568,7 +716,7 @@ fn it_square_root() {
     assert_eq!(
         match result.pop().unwrap() {
             OperationElt::Operand(val) => Ok(val),
-            _ => Err("No operand on stack"),
+            _ => Err("No operand on stack".to_string()),
         }.unwrap(),
         3.0
     );
@@ -582,7 +730,7 @@ fn it_evaluates_complex_expressions() {
     assert_eq!(
         match result.pop().unwrap() {
             OperationElt::Operand(val) => Ok(val),
-            _ => Err("No operand on stack"),
+            _ => Err("No operand on stack".to_string()),
         }.unwrap(),
         2.5
     );
@@ -595,7 +743,7 @@ fn it_allows_multiple_whitespaces() {
     assert_eq!(
         match result.pop().unwrap() {
             OperationElt::Operand(val) => Ok(val),
-            _ => Err("No operand on stack"),
+            _ => Err("No operand on stack".to_string()),
         }.unwrap(),
         0.0
     );
