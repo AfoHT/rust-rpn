@@ -2,7 +2,7 @@ extern crate rand;
 
 use rand::Rng;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Operator {
     Acos,
     Acosh,
@@ -101,7 +101,7 @@ pub enum Operator {
     Yn,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OperationElt {
     Operator(Operator),
     Operand(f32),
@@ -484,7 +484,7 @@ pub fn evaluate<'a>(
                             Operator::Roll => {
                                 // Get the given index to push to the stack top
                                 let operand1 = stack_pop(stack).unwrap();
-                                let result = match stack.remove(operand1 as usize - 1) {
+                                let result = match stack.remove(stack.len() - operand1 as usize) {
                                     OperationElt::Operand(val) => Ok(OperationElt::Operand(val)),
                                     _ => Err("Not a suitable number on the stack"),
                                 }?;
@@ -720,6 +720,20 @@ fn it_square_root() {
         }.unwrap(),
         3.0
     );
+}
+
+#[test]
+fn it_rolls() {
+    let mut stack: Vec<OperationElt> = Vec::new();
+    let result = evaluate(&mut stack, "1 2 3 4 5 2 roll").unwrap();
+    let expected = &mut vec![
+        OperationElt::Operand(1_f32),
+        OperationElt::Operand(2_f32),
+        OperationElt::Operand(3_f32),
+        OperationElt::Operand(5_f32),
+        OperationElt::Operand(4_f32),
+    ];
+    assert_eq!(result, expected);
 }
 
 #[test]
