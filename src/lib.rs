@@ -545,7 +545,7 @@ pub fn evaluate<'a>(
                                 let operand1 = stack_pop(stack).unwrap();
                                 let stack_top =
                                     stack.pop().expect("No value found on this stack level");
-                                stack.insert(operand1 as usize - 1, stack_top);
+                                stack.insert(stack.len() - operand1 as usize, stack_top);
                             }
 
                             // Operators without operands
@@ -561,8 +561,7 @@ pub fn evaluate<'a>(
                                 stack.push(OperationElt::Operand(length as f32))
                             }
                             Operator::Rot => {
-                                // Grab the last element of the stack, and put in the top of
-                                // stack
+                                // Move the last element of the stack to the top of the stack
                                 let length = stack.len();
                                 let stack_back = stack.remove(length - 1);
                                 stack.push(stack_back);
@@ -723,7 +722,7 @@ fn it_square_root() {
 }
 
 #[test]
-fn it_rolls() {
+fn it_roll() {
     let mut stack: Vec<OperationElt> = Vec::new();
     let result = evaluate(&mut stack, "1 2 3 4 5 2 roll").unwrap();
     let expected = &mut vec![
@@ -731,6 +730,20 @@ fn it_rolls() {
         OperationElt::Operand(2_f32),
         OperationElt::Operand(3_f32),
         OperationElt::Operand(5_f32),
+        OperationElt::Operand(4_f32),
+    ];
+    assert_eq!(result, expected);
+}
+
+#[test]
+fn it_rolld() {
+    let mut stack: Vec<OperationElt> = Vec::new();
+    let result = evaluate(&mut stack, "1 2 3 4 5 2 rolld").unwrap();
+    let expected = &mut vec![
+        OperationElt::Operand(1_f32),
+        OperationElt::Operand(2_f32),
+        OperationElt::Operand(5_f32),
+        OperationElt::Operand(3_f32),
         OperationElt::Operand(4_f32),
     ];
     assert_eq!(result, expected);
