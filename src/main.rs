@@ -22,7 +22,12 @@ fn main() {
         let result = rpn::evaluate(&mut stack, &input);
         match result {
             Err(err) => println!("Error: {}", err),
-            Ok(res) => println!("{:?}", res),
+            Ok(stack) => for (count, stackrow) in stack.iter().enumerate() {
+                match stackrow {
+                    OperationElt::Operand(val) => println!("{}: {:?}", stack.len() - count, val),
+                    OperationElt::Operator(val) => println!("{}: {:?}", stack.len() - count, val),
+                }
+            },
         }
     }
 }
