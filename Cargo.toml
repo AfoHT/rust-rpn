@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Florent FAYOLLE <florent.fayolle69@gmail.com>"]
 license = "MIT"
 description = "A Reverse Polish Notation lib + executable"
+edition = "2018"
 
 [dependencies]
 permutohedron = "0.2.4"

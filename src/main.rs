@@ -1,11 +1,11 @@
 extern crate rpn;
-use rpn::OperationElt;
+use rpn::Stack;
 use std::io::{self, Write};
 
 fn main() {
     println!("Reverse Polish Notation.");
     println!("Type quit to exit");
-    let mut stack: Vec<OperationElt> = Vec::new();
+    let mut stack: Vec<Stack> = Vec::new();
 
     loop {
         print!(">> ");
@@ -24,8 +24,8 @@ fn main() {
             Err(err) => println!("Error: {}", err),
             Ok(stack) => for (count, stackrow) in stack.iter().enumerate() {
                 match stackrow {
-                    OperationElt::Operand(val) => println!("{}: {:?}", stack.len() - count, val),
-                    OperationElt::Operator(val) => println!("{}: {:?}", stack.len() - count, val),
+                    Stack::Operand(val) => println!("{}: {:?}", stack.len() - count, val),
+                    Stack::Operator(val) => println!("{}: {:?}", stack.len() - count, val),
                 }
             },
         }
